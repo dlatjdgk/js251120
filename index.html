@@ -24,45 +24,53 @@
             z-index: 10;
             display: flex;
             align-items: center;
+            gap: 10px;
             background-color: rgba(255, 255, 255, 0.8);
-            padding: 5px 15px;
+            padding: 8px 15px;
             border-radius: 20px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .controls button {
-            padding: 8px 12px;
-            font-size: 14px;
-            cursor: pointer;
-            border: none;
-            background-color: transparent;
-            margin: 0 5px;
-            transition: transform 0.2s;
-        }
-        .controls button:hover {
-            transform: scale(1.1);
-        }
-        #speedDisplay {
+        .controls label {
             font-size: 14px;
             font-weight: bold;
-            color: #333;
-            min-width: 50px;
-            text-align: center;
+        }
+        .controls input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .controls button {
+            padding: 6px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid #777;
+            background-color: #fff;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        .controls button:hover {
+            background-color: #eee;
         }
         #clearBallBtn {
-            margin-left: 15px; /* Add some space */
-            color: #d9534f; /* Reddish color for clear/delete action */
-            font-weight: normal;
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            padding: 0 5px;
+            color: #d9534f;
         }
         #clearBallBtn:hover {
             color: #c9302c;
+            background-color: transparent;
         }
     </style>
 </head>
 <body>
     <div class="controls">
-        <button id="slowerBtn" title="느리게">🐢</button>
-        <span id="speedDisplay"></span>
-        <button id="fasterBtn" title="빠르게">🐇</button>
+        <label for="speedInput">속도:</label>
+        <input type="number" id="speedInput" min="0.5" max="10" step="0.5">
+        <button id="setSpeedBtn">설정</button>
         <button id="clearBallBtn" title="공 지우기">🗑️</button>
     </div>
     <canvas id="backgroundCanvas"></canvas>
@@ -75,7 +83,8 @@
         let height = canvas.height = window.innerHeight;
 
         // --- Elements ---
-        const speedDisplay = document.getElementById('speedDisplay');
+        const speedInput = document.getElementById('speedInput');
+        const setSpeedBtn = document.getElementById('setSpeedBtn');
         const clearBallBtn = document.getElementById('clearBallBtn');
 
         // --- Objects ---
@@ -83,11 +92,11 @@
         const dog = {
             x: Math.random() * width,
             y: Math.random() * height,
-            vx: 0, // velocity x
-            vy: 0, // velocity y
+            vx: 0,
+            vy: 0,
             size: 80,
             baseSpeed: 2,
-            facingDirection: 1, // 1 for right, -1 for left
+            facingDirection: 1,
         };
         const ball = { x: 0, y: 0, size: 15, active: false };
         let wanderTarget = { x: Math.random() * width, y: Math.random() * height };
@@ -97,8 +106,19 @@
         dogImage.src = 'https://cdn-icons-png.flaticon.com/512/91/91544.png'; 
 
         // --- Functions ---
-        function updateSpeedDisplay() {
-            speedDisplay.textContent = `속도: ${dog.baseSpeed.toFixed(1)}`;
+        function setSpeed() {
+            const newSpeed = parseFloat(speedInput.value);
+            if (!isNaN(newSpeed) && newSpeed >= 0.5 && newSpeed <= 10) {
+                dog.baseSpeed = newSpeed;
+                console.log(`Speed set to: ${dog.baseSpeed}`);
+            } else {
+                alert('속도는 0.5에서 10 사이의 값으로 입력해주세요.');
+                speedInput.value = dog.baseSpeed;
+            }
+        }
+        
+        function updateSpeedInput() {
+            speedInput.value = dog.baseSpeed.toFixed(1);
         }
 
         // --- Event Listeners ---
@@ -111,20 +131,17 @@
         window.addEventListener('mouseout', () => { mouse.x = undefined; mouse.y = undefined; });
 
         canvas.addEventListener('click', (e) => {
-            if (e.target.id.includes('Btn')) return; // Ignore clicks on buttons
+            if (e.target.closest('.controls')) return; // Ignore clicks on controls
             ball.x = e.x;
             ball.y = e.y;
             ball.active = true;
         });
-
-        document.getElementById('slowerBtn').addEventListener('click', () => {
-            dog.baseSpeed = Math.max(0.5, dog.baseSpeed - 0.5);
-            updateSpeedDisplay();
-        });
-
-        document.getElementById('fasterBtn').addEventListener('click', () => {
-            dog.baseSpeed = Math.min(10, dog.baseSpeed + 0.5);
-            updateSpeedDisplay();
+        
+        setSpeedBtn.addEventListener('click', setSpeed);
+        speedInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                setSpeed();
+            }
         });
 
         clearBallBtn.addEventListener('click', () => {
@@ -159,28 +176,22 @@
         function updateDog() {
             let target = null;
             let targetSpeed = dog.baseSpeed;
-            let steeringForce = 0.1; // How quickly the dog turns
+            let steeringForce = 0.1;
 
-            // Determine target and speed
             if (ball.active) {
                 target = ball;
-                targetSpeed = dog.baseSpeed * 1.5; // Chase ball faster
+                targetSpeed = dog.baseSpeed * 1.5;
                 if (Math.hypot(dog.x - ball.x, dog.y - ball.y) < dog.size / 2) {
                     ball.active = false;
                 }
             } else if (mouse.x !== undefined) {
                 const distMouse = Math.hypot(dog.x - mouse.x, dog.y - mouse.y);
                 if (distMouse < mouse.radius) {
-                    // Fleeing from mouse
-                    target = { 
-                        x: dog.x + (dog.x - mouse.x),
-                        y: dog.y + (dog.y - mouse.y)
-                    };
+                    target = { x: dog.x + (dog.x - mouse.x), y: dog.y + (dog.y - mouse.y) };
                     targetSpeed = dog.baseSpeed * 1.8;
                 }
             }
 
-            // If no target, wander
             if (!target) {
                 target = wanderTarget;
                 targetSpeed = dog.baseSpeed * 0.5;
@@ -189,7 +200,6 @@
                 }
             }
 
-            // --- Steering and Acceleration ---
             const dx = target.x - dog.x;
             const dy = target.y - dog.y;
             const distance = Math.hypot(dx, dy);
@@ -197,25 +207,22 @@
             let desiredVx = 0;
             let desiredVy = 0;
 
-            if (distance > 1) { // To avoid jittering at target
+            if (distance > 1) {
                 desiredVx = (dx / distance) * targetSpeed;
                 desiredVy = (dy / distance) * targetSpeed;
             }
 
-            // Apply steering force (interpolate towards desired velocity)
             dog.vx += (desiredVx - dog.vx) * steeringForce;
             dog.vy += (desiredVy - dog.vy) * steeringForce;
 
-            // --- Update Position and Boundary Checks ---
             dog.x += dog.vx;
             dog.y += dog.vy;
 
             if (dog.x + dog.size/2 > width) { dog.x = width - dog.size/2; dog.vx *= -0.5; }
             if (dog.x - dog.size/2 < 0) { dog.x = dog.size/2; dog.vx *= -0.5; }
-            if (dog.y + dog.size/2 > height) { dog.y = height - dog.size/2; dog.dy *= -0.5; }
+            if (dog.y + dog.size/2 > height) { dog.y = height - dog.size/2; dog.vy *= -0.5; } // Corrected typo here from dy to vy
             if (dog.y - dog.size/2 < 0) { dog.y = dog.size/2; dog.vy *= -0.5; }
 
-            // Update facing direction
             if (Math.abs(dog.vx) > 0.1) {
                 dog.facingDirection = Math.sign(dog.vx);
             }
@@ -231,7 +238,7 @@
         }
 
         // --- Initial Setup ---
-        updateSpeedDisplay();
+        updateSpeedInput();
         dogImage.onload = animate;
         if (dogImage.complete) animate();
 
