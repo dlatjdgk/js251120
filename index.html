@@ -12,7 +12,7 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(to bottom, #87CEEB, #E0F6FF); /* Subtle sky-like gradient */
-            font-family: -apple-system, BlinkMacMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         canvas {
             display: block;
@@ -83,21 +83,22 @@
         const dog = {
             x: Math.random() * width,
             y: Math.random() * height,
+            vx: 0, // velocity x
+            vy: 0, // velocity y
             size: 80,
-            speed: 2,
-            dx: (Math.random() - 0.5) * 2,
-            dy: (Math.random() - 0.5) * 2,
+            baseSpeed: 2,
+            facingDirection: 1, // 1 for right, -1 for left
         };
         const ball = { x: 0, y: 0, size: 15, active: false };
+        let wanderTarget = { x: Math.random() * width, y: Math.random() * height };
 
         // --- Dog Image ---
         const dogImage = new Image();
-        // Using a PNG image with a transparent background
         dogImage.src = 'https://cdn-icons-png.flaticon.com/512/91/91544.png'; 
 
         // --- Functions ---
         function updateSpeedDisplay() {
-            speedDisplay.textContent = `속도: ${dog.speed.toFixed(1)}`;
+            speedDisplay.textContent = `속도: ${dog.baseSpeed.toFixed(1)}`;
         }
 
         // --- Event Listeners ---
@@ -110,18 +111,19 @@
         window.addEventListener('mouseout', () => { mouse.x = undefined; mouse.y = undefined; });
 
         canvas.addEventListener('click', (e) => {
+            if (e.target.id.includes('Btn')) return; // Ignore clicks on buttons
             ball.x = e.x;
             ball.y = e.y;
             ball.active = true;
         });
 
         document.getElementById('slowerBtn').addEventListener('click', () => {
-            dog.speed = Math.max(0.5, dog.speed - 0.5);
+            dog.baseSpeed = Math.max(0.5, dog.baseSpeed - 0.5);
             updateSpeedDisplay();
         });
 
         document.getElementById('fasterBtn').addEventListener('click', () => {
-            dog.speed = Math.min(10, dog.speed + 0.5);
+            dog.baseSpeed = Math.min(10, dog.baseSpeed + 0.5);
             updateSpeedDisplay();
         });
 
@@ -132,20 +134,11 @@
         // --- Drawing Functions ---
         function drawDog() {
             if (dogImage.complete) {
-                ctx.save(); // Save the current canvas state
-
-                // Translate to the center of the dog
+                ctx.save();
                 ctx.translate(dog.x, dog.y);
-
-                if (dog.dx < 0) { // Moving left
-                    ctx.scale(-1, 1); // Flip horizontally
-                    // Draw image centered around the new origin (which is dog.x, dog.y before translation)
-                    ctx.drawImage(dogImage, -dog.size / 2, -dog.size / 2, dog.size, dog.size);
-                } else { // Moving right or not moving horizontally
-                    ctx.drawImage(dogImage, -dog.size / 2, -dog.size / 2, dog.size, dog.size);
-                }
-                
-                ctx.restore(); // Restore the canvas state
+                ctx.scale(dog.facingDirection, 1);
+                ctx.drawImage(dogImage, -dog.size / 2, -dog.size / 2, dog.size, dog.size);
+                ctx.restore();
             }
         }
 
@@ -153,8 +146,8 @@
             if (ball.active) {
                 ctx.beginPath();
                 ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI * 2);
-                ctx.fillStyle = '#66BB6A'; // Playful green
-                ctx.strokeStyle = '#388E3C'; // Darker green outline
+                ctx.fillStyle = '#66BB6A';
+                ctx.strokeStyle = '#388E3C';
                 ctx.lineWidth = 2;
                 ctx.fill();
                 ctx.stroke();
@@ -165,53 +158,67 @@
         // --- Update Logic ---
         function updateDog() {
             let target = null;
-            let currentSpeed = dog.speed;
-            
-            // State: Chasing the ball
+            let targetSpeed = dog.baseSpeed;
+            let steeringForce = 0.1; // How quickly the dog turns
+
+            // Determine target and speed
             if (ball.active) {
                 target = ball;
-                const dxBall = dog.x - ball.x;
-                const dyBall = dog.y - ball.y;
-                const distanceToBall = Math.sqrt(dxBall * dxBall + dyBall * dyBall);
-                if (distanceToBall < dog.size / 2) {
-                    ball.active = false; // Caught the ball
+                targetSpeed = dog.baseSpeed * 1.5; // Chase ball faster
+                if (Math.hypot(dog.x - ball.x, dog.y - ball.y) < dog.size / 2) {
+                    ball.active = false;
                 }
-            } 
-            // State: Fleeing the mouse
-            else if (mouse.x !== undefined) {
-                const dxMouse = dog.x - mouse.x;
-                const dyMouse = dog.y - mouse.y;
-                const distanceToMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
-                if (distanceToMouse < mouse.radius) {
-                    target = mouse;
-                    currentSpeed += 2; // Run away faster
+            } else if (mouse.x !== undefined) {
+                const distMouse = Math.hypot(dog.x - mouse.x, dog.y - mouse.y);
+                if (distMouse < mouse.radius) {
+                    // Fleeing from mouse
+                    target = { 
+                        x: dog.x + (dog.x - mouse.x),
+                        y: dog.y + (dog.y - mouse.y)
+                    };
+                    targetSpeed = dog.baseSpeed * 1.8;
                 }
             }
 
-            // --- Movement Calculation ---
-            if (target) {
-                const angle = Math.atan2(dog.y - target.y, dog.x - target.x);
-                // If chasing ball, move towards it. If fleeing mouse, move away.
-                const direction = (target === ball) ? -1 : 1;
-                dog.dx = direction * Math.cos(angle);
-                dog.dy = direction * Math.sin(angle);
-            } 
-            // State: Wandering
-            else {
-                if (Math.random() < 0.01) {
-                    dog.dx = (Math.random() - 0.5) * 2;
-                    dog.dy = (Math.random() - 0.5) * 2;
+            // If no target, wander
+            if (!target) {
+                target = wanderTarget;
+                targetSpeed = dog.baseSpeed * 0.5;
+                if (Math.hypot(dog.x - wanderTarget.x, dog.y - wanderTarget.y) < 50) {
+                    wanderTarget = { x: Math.random() * width, y: Math.random() * height };
                 }
             }
 
-            dog.x += dog.dx * currentSpeed;
-            dog.y += dog.dy * currentSpeed;
+            // --- Steering and Acceleration ---
+            const dx = target.x - dog.x;
+            const dy = target.y - dog.y;
+            const distance = Math.hypot(dx, dy);
             
-            // --- Boundary Checks ---
-            if (dog.x + dog.size/2 > width) { dog.x = width - dog.size/2; dog.dx *= -1; }
-            if (dog.x - dog.size/2 < 0) { dog.x = dog.size/2; dog.dx *= -1; }
-            if (dog.y + dog.size/2 > height) { dog.y = height - dog.size/2; dog.dy *= -1; }
-            if (dog.y - dog.size/2 < 0) { dog.y = dog.size/2; dog.dy *= -1; }
+            let desiredVx = 0;
+            let desiredVy = 0;
+
+            if (distance > 1) { // To avoid jittering at target
+                desiredVx = (dx / distance) * targetSpeed;
+                desiredVy = (dy / distance) * targetSpeed;
+            }
+
+            // Apply steering force (interpolate towards desired velocity)
+            dog.vx += (desiredVx - dog.vx) * steeringForce;
+            dog.vy += (desiredVy - dog.vy) * steeringForce;
+
+            // --- Update Position and Boundary Checks ---
+            dog.x += dog.vx;
+            dog.y += dog.vy;
+
+            if (dog.x + dog.size/2 > width) { dog.x = width - dog.size/2; dog.vx *= -0.5; }
+            if (dog.x - dog.size/2 < 0) { dog.x = dog.size/2; dog.vx *= -0.5; }
+            if (dog.y + dog.size/2 > height) { dog.y = height - dog.size/2; dog.dy *= -0.5; }
+            if (dog.y - dog.size/2 < 0) { dog.y = dog.size/2; dog.vy *= -0.5; }
+
+            // Update facing direction
+            if (Math.abs(dog.vx) > 0.1) {
+                dog.facingDirection = Math.sign(dog.vx);
+            }
         }
 
         // --- Main Animation Loop ---
