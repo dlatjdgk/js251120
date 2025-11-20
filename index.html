@@ -11,7 +11,7 @@
             overflow: hidden;
             width: 100%;
             height: 100%;
-            background-color: #f0f0f0;
+            background: linear-gradient(to bottom, #87CEEB, #E0F6FF); /* Subtle sky-like gradient */
         }
         canvas {
             display: block;
@@ -71,19 +71,12 @@
         }
 
         function updateDog() {
-            // Move dog
-            dog.x += dog.dx * dog.speed;
-            dog.y += dog.dy * dog.speed;
-
-            // Wall collision
-            if (dog.x + dog.size / 2 > width || dog.x - dog.size / 2 < 0) {
-                dog.dx *= -1;
-            }
-            if (dog.y + dog.size / 2 > height || dog.y - dog.size / 2 < 0) {
-                dog.dy *= -1;
-            }
+            // --- Movement ---
+            let currentSpeed = dog.speed;
+            let currentDx = dog.dx;
+            let currentDy = dog.dy;
             
-            // Mouse collision
+            // Mouse interaction
             if (mouse.x !== undefined && mouse.y !== undefined) {
                 const dxMouse = dog.x - mouse.x;
                 const dyMouse = dog.y - mouse.y;
@@ -91,10 +84,9 @@
 
                 if (distance < mouse.radius) {
                     const angle = Math.atan2(dyMouse, dxMouse);
-                    dog.dx = Math.cos(angle);
-                    dog.dy = Math.sin(angle);
-                    dog.x += dog.dx * (dog.speed + 2); // Extra boost to run away
-                    dog.y += dog.dy * (dog.speed + 2);
+                    currentDx = Math.cos(angle);
+                    currentDy = Math.sin(angle);
+                    currentSpeed = dog.speed + 2; // Run away faster
                 }
             } else {
                  // Randomly change direction when mouse is out
@@ -102,6 +94,29 @@
                     dog.dx = (Math.random() - 0.5) * 2;
                     dog.dy = (Math.random() - 0.5) * 2;
                 }
+            }
+
+            // Update potential position
+            dog.x += currentDx * currentSpeed;
+            dog.y += currentDy * currentSpeed;
+
+            // --- Boundary checks (clamping and bouncing) ---
+            // Horizontal
+            if (dog.x + dog.size / 2 > width) {
+                dog.x = width - dog.size / 2;
+                dog.dx = -Math.abs(dog.dx); // Ensure direction is inwards
+            } else if (dog.x - dog.size / 2 < 0) {
+                dog.x = dog.size / 2;
+                dog.dx = Math.abs(dog.dx); // Ensure direction is inwards
+            }
+
+            // Vertical
+            if (dog.y + dog.size / 2 > height) {
+                dog.y = height - dog.size / 2;
+                dog.dy = -Math.abs(dog.dy); // Ensure direction is inwards
+            } else if (dog.y - dog.size / 2 < 0) {
+                dog.y = dog.size / 2;
+                dog.dy = Math.abs(dog.dy); // Ensure direction is inwards
             }
         }
 
