@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moving Dog Background</title>
+    <title>Interactive Dog Background</title>
     <style>
         body, html {
             margin: 0;
@@ -16,9 +16,33 @@
         canvas {
             display: block;
         }
+        .controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+        }
+        .controls button {
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid #555;
+            background-color: #fff;
+            border-radius: 20px;
+            margin-right: 10px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .controls button:hover {
+            background-color: #333;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
+    <div class="controls">
+        <button id="slowerBtn">느리게 🐢</button>
+        <button id="fasterBtn">빠르게 🐇</button>
+    </div>
     <canvas id="backgroundCanvas"></canvas>
 
     <script>
@@ -28,33 +52,8 @@
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
 
-        const mouse = {
-            x: null,
-            y: null,
-            radius: 150
-        };
-
-        window.addEventListener('mousemove', (event) => {
-            mouse.x = event.x;
-            mouse.y = event.y;
-        });
-        
-        window.addEventListener('mouseout', () => {
-            mouse.x = undefined;
-            mouse.y = undefined;
-        });
-
-        window.addEventListener('resize', () => {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-        });
-
-        // --- Dog Image ---
-        const dogImage = new Image();
-        // TODO: Replace this placeholder URL with a direct link to your desired dog image.
-        // For example: "https://example.com/your-dog-image.png"
-        dogImage.src = 'https://img.freepik.com/premium-photo/pomeranian-dog-white-background_63176-471.jpg'; // A placeholder cute dog icon
-
+        // --- Objects ---
+        const mouse = { x: null, y: null, radius: 150 };
         const dog = {
             x: Math.random() * width,
             y: Math.random() * height,
@@ -63,78 +62,116 @@
             dx: (Math.random() - 0.5) * 2,
             dy: (Math.random() - 0.5) * 2,
         };
+        const ball = { x: 0, y: 0, size: 15, active: false };
 
+        // --- Dog Image ---
+        const dogImage = new Image();
+        dogImage.src = 'https://img.freepik.com/premium-photo/pomeranian-dog-white-background_63176-471.jpg'; // A placeholder cute dog icon
+
+        // --- Event Listeners ---
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
+        window.addEventListener('mouseout', () => { mouse.x = undefined; mouse.y = undefined; });
+
+        canvas.addEventListener('click', (e) => {
+            ball.x = e.x;
+            ball.y = e.y;
+            ball.active = true;
+        });
+
+        document.getElementById('slowerBtn').addEventListener('click', () => {
+            dog.speed = Math.max(0.5, dog.speed - 0.5); // Set a minimum speed
+        });
+
+        document.getElementById('fasterBtn').addEventListener('click', () => {
+            dog.speed = Math.min(10, dog.speed + 0.5); // Set a maximum speed
+        });
+
+        // --- Drawing Functions ---
         function drawDog() {
             if (dogImage.complete) {
                 ctx.drawImage(dogImage, dog.x - dog.size / 2, dog.y - dog.size / 2, dog.size, dog.size);
             }
         }
 
+        function drawBall() {
+            if (ball.active) {
+                ctx.beginPath();
+                ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI * 2);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        // --- Update Logic ---
         function updateDog() {
-            // --- Movement ---
+            let target = null;
             let currentSpeed = dog.speed;
-            let currentDx = dog.dx;
-            let currentDy = dog.dy;
             
-            // Mouse interaction
-            if (mouse.x !== undefined && mouse.y !== undefined) {
+            // State: Chasing the ball
+            if (ball.active) {
+                target = ball;
+                const dxBall = dog.x - ball.x;
+                const dyBall = dog.y - ball.y;
+                const distanceToBall = Math.sqrt(dxBall * dxBall + dyBall * dyBall);
+                if (distanceToBall < dog.size / 2) {
+                    ball.active = false; // Caught the ball
+                }
+            } 
+            // State: Fleeing the mouse
+            else if (mouse.x !== undefined) {
                 const dxMouse = dog.x - mouse.x;
                 const dyMouse = dog.y - mouse.y;
-                const distance = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
-
-                if (distance < mouse.radius) {
-                    const angle = Math.atan2(dyMouse, dxMouse);
-                    currentDx = Math.cos(angle);
-                    currentDy = Math.sin(angle);
-                    currentSpeed = dog.speed + 2; // Run away faster
+                const distanceToMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
+                if (distanceToMouse < mouse.radius) {
+                    target = mouse;
+                    currentSpeed += 2; // Run away faster
                 }
-            } else {
-                 // Randomly change direction when mouse is out
+            }
+
+            // --- Movement Calculation ---
+            if (target) {
+                const angle = Math.atan2(dog.y - target.y, dog.x - target.x);
+                // If chasing ball, move towards it. If fleeing mouse, move away.
+                const direction = (target === ball) ? -1 : 1;
+                dog.dx = direction * Math.cos(angle);
+                dog.dy = direction * Math.sin(angle);
+            } 
+            // State: Wandering
+            else {
                 if (Math.random() < 0.01) {
                     dog.dx = (Math.random() - 0.5) * 2;
                     dog.dy = (Math.random() - 0.5) * 2;
                 }
             }
 
-            // Update potential position
-            dog.x += currentDx * currentSpeed;
-            dog.y += currentDy * currentSpeed;
-
-            // --- Boundary checks (clamping and bouncing) ---
-            // Horizontal
-            if (dog.x + dog.size / 2 > width) {
-                dog.x = width - dog.size / 2;
-                dog.dx = -Math.abs(dog.dx); // Ensure direction is inwards
-            } else if (dog.x - dog.size / 2 < 0) {
-                dog.x = dog.size / 2;
-                dog.dx = Math.abs(dog.dx); // Ensure direction is inwards
-            }
-
-            // Vertical
-            if (dog.y + dog.size / 2 > height) {
-                dog.y = height - dog.size / 2;
-                dog.dy = -Math.abs(dog.dy); // Ensure direction is inwards
-            } else if (dog.y - dog.size / 2 < 0) {
-                dog.y = dog.size / 2;
-                dog.dy = Math.abs(dog.dy); // Ensure direction is inwards
-            }
+            dog.x += dog.dx * currentSpeed;
+            dog.y += dog.dy * currentSpeed;
+            
+            // --- Boundary Checks ---
+            if (dog.x + dog.size/2 > width) { dog.x = width - dog.size/2; dog.dx *= -1; }
+            if (dog.x - dog.size/2 < 0) { dog.x = dog.size/2; dog.dx *= -1; }
+            if (dog.y + dog.size/2 > height) { dog.y = height - dog.size/2; dog.dy *= -1; }
+            if (dog.y - dog.size/2 < 0) { dog.y = dog.size/2; dog.dy *= -1; }
         }
 
+        // --- Main Animation Loop ---
         function animate() {
             ctx.clearRect(0, 0, width, height);
+            drawBall();
             updateDog();
             drawDog();
             requestAnimationFrame(animate);
         }
 
-        dogImage.onload = () => {
-            animate();
-        };
+        dogImage.onload = animate;
+        if (dogImage.complete) animate();
 
-        // If the image is already cached and loaded
-        if (dogImage.complete) {
-            animate();
-        }
     </script>
 </body>
 </html>
