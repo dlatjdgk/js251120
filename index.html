@@ -69,7 +69,7 @@
 <body>
     <div class="controls">
         <label for="speedInput">속도:</label>
-        <input type="number" id="speedInput" min="0.5" max="10" step="0.5">
+        <input type="number" id="speedInput" min="0" step="0.5">
         <button id="setSpeedBtn">설정</button>
         <button id="clearBallBtn" title="공 지우기">🗑️</button>
     </div>
@@ -108,11 +108,11 @@
         // --- Functions ---
         function setSpeed() {
             const newSpeed = parseFloat(speedInput.value);
-            if (!isNaN(newSpeed) && newSpeed >= 0.5 && newSpeed <= 10) {
+            if (!isNaN(newSpeed) && newSpeed > 0) {
                 dog.baseSpeed = newSpeed;
                 console.log(`Speed set to: ${dog.baseSpeed}`);
             } else {
-                alert('속도는 0.5에서 10 사이의 값으로 입력해주세요.');
+                alert('속도는 0보다 큰 값으로 입력해주세요.');
                 speedInput.value = dog.baseSpeed;
             }
         }
@@ -181,7 +181,21 @@
             if (ball.active) {
                 target = ball;
                 targetSpeed = dog.baseSpeed * 1.5;
-                if (Math.hypot(dog.x - ball.x, dog.y - ball.y) < dog.size / 2) {
+                
+                let catchRadius = dog.size / 2;
+                const cornerThreshold = 30;
+                const isNearCorner = (
+                    (ball.x < cornerThreshold && ball.y < cornerThreshold) ||
+                    (ball.x > width - cornerThreshold && ball.y < cornerThreshold) ||
+                    (ball.x < cornerThreshold && ball.y > height - cornerThreshold) ||
+                    (ball.x > width - cornerThreshold && ball.y > height - cornerThreshold)
+                );
+                
+                if (isNearCorner) {
+                    catchRadius = dog.size * 0.85; // Wider catch radius in corners
+                }
+
+                if (Math.hypot(dog.x - ball.x, dog.y - ball.y) < catchRadius) {
                     ball.active = false;
                 }
             } else if (mouse.x !== undefined) {
@@ -220,7 +234,7 @@
 
             if (dog.x + dog.size/2 > width) { dog.x = width - dog.size/2; dog.vx *= -0.5; }
             if (dog.x - dog.size/2 < 0) { dog.x = dog.size/2; dog.vx *= -0.5; }
-            if (dog.y + dog.size/2 > height) { dog.y = height - dog.size/2; dog.vy *= -0.5; } // Corrected typo here from dy to vy
+            if (dog.y + dog.size/2 > height) { dog.y = height - dog.size/2; dog.vy *= -0.5; }
             if (dog.y - dog.size/2 < 0) { dog.y = dog.size/2; dog.vy *= -0.5; }
 
             if (Math.abs(dog.vx) > 0.1) {
