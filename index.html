@@ -35,7 +35,7 @@
             font-weight: bold;
         }
         .controls input[type="number"] {
-            width: 60px;
+            width: 50px;
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 5px;
@@ -64,6 +64,11 @@
             color: #c9302c;
             background-color: transparent;
         }
+        .divider {
+            border-left: 1px solid #ccc;
+            height: 20px;
+            margin: 0 5px;
+        }
     </style>
 </head>
 <body>
@@ -71,6 +76,11 @@
         <label for="speedInput">속도:</label>
         <input type="number" id="speedInput" min="0" step="0.5">
         <button id="setSpeedBtn">설정</button>
+        <span class="divider"></span>
+        <label for="sizeInput">크기:</label>
+        <input type="number" id="sizeInput" min="20" max="200" step="10">
+        <button id="setSizeBtn">설정</button>
+        <span class="divider"></span>
         <button id="clearBallBtn" title="공 지우기">🗑️</button>
     </div>
     <canvas id="backgroundCanvas"></canvas>
@@ -85,6 +95,8 @@
         // --- Elements ---
         const speedInput = document.getElementById('speedInput');
         const setSpeedBtn = document.getElementById('setSpeedBtn');
+        const sizeInput = document.getElementById('sizeInput');
+        const setSizeBtn = document.getElementById('setSizeBtn');
         const clearBallBtn = document.getElementById('clearBallBtn');
 
         // --- Objects ---
@@ -110,15 +122,28 @@
             const newSpeed = parseFloat(speedInput.value);
             if (!isNaN(newSpeed) && newSpeed > 0) {
                 dog.baseSpeed = newSpeed;
-                console.log(`Speed set to: ${dog.baseSpeed}`);
             } else {
                 alert('속도는 0보다 큰 값으로 입력해주세요.');
-                speedInput.value = dog.baseSpeed;
+                updateSpeedInput();
             }
         }
         
         function updateSpeedInput() {
             speedInput.value = dog.baseSpeed.toFixed(1);
+        }
+
+        function setSize() {
+            const newSize = parseInt(sizeInput.value, 10);
+            if (!isNaN(newSize) && newSize >= 20 && newSize <= 200) {
+                dog.size = newSize;
+            } else {
+                alert('크기는 20에서 200 사이의 값으로 입력해주세요.');
+                updateSizeInput();
+            }
+        }
+        
+        function updateSizeInput() {
+            sizeInput.value = dog.size;
         }
 
         // --- Event Listeners ---
@@ -139,9 +164,12 @@
         
         setSpeedBtn.addEventListener('click', setSpeed);
         speedInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                setSpeed();
-            }
+            if (e.key === 'Enter') setSpeed();
+        });
+
+        setSizeBtn.addEventListener('click', setSize);
+        sizeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') setSize();
         });
 
         clearBallBtn.addEventListener('click', () => {
@@ -253,6 +281,7 @@
 
         // --- Initial Setup ---
         updateSpeedInput();
+        updateSizeInput();
         dogImage.onload = animate;
         if (dogImage.complete) animate();
 
