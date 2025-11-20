@@ -12,6 +12,7 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(to bottom, #87CEEB, #E0F6FF); /* Subtle sky-like gradient */
+            font-family: -apple-system, BlinkMacMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
         canvas {
             display: block;
@@ -21,27 +22,48 @@
             top: 15px;
             left: 15px;
             z-index: 10;
+            display: flex;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .controls button {
-            padding: 8px 16px;
+            padding: 8px 12px;
             font-size: 14px;
             cursor: pointer;
-            border: 1px solid #555;
-            background-color: #fff;
-            border-radius: 20px;
-            margin-right: 10px;
-            transition: background-color 0.2s, color 0.2s;
+            border: none;
+            background-color: transparent;
+            margin: 0 5px;
+            transition: transform 0.2s;
         }
         .controls button:hover {
-            background-color: #333;
-            color: #fff;
+            transform: scale(1.1);
+        }
+        #speedDisplay {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            min-width: 50px;
+            text-align: center;
+        }
+        #clearBallBtn {
+            margin-left: 15px; /* Add some space */
+            color: #d9534f; /* Reddish color for clear/delete action */
+            font-weight: normal;
+        }
+        #clearBallBtn:hover {
+            color: #c9302c;
         }
     </style>
 </head>
 <body>
     <div class="controls">
-        <button id="slowerBtn">느리게 🐢</button>
-        <button id="fasterBtn">빠르게 🐇</button>
+        <button id="slowerBtn" title="느리게">🐢</button>
+        <span id="speedDisplay"></span>
+        <button id="fasterBtn" title="빠르게">🐇</button>
+        <button id="clearBallBtn" title="공 지우기">🗑️</button>
     </div>
     <canvas id="backgroundCanvas"></canvas>
 
@@ -51,6 +73,10 @@
 
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
+
+        // --- Elements ---
+        const speedDisplay = document.getElementById('speedDisplay');
+        const clearBallBtn = document.getElementById('clearBallBtn');
 
         // --- Objects ---
         const mouse = { x: null, y: null, radius: 150 };
@@ -66,7 +92,13 @@
 
         // --- Dog Image ---
         const dogImage = new Image();
-        dogImage.src = 'https://img.freepik.com/premium-photo/pomeranian-dog-white-background_63176-471.jpg'; // A placeholder cute dog icon
+        // Using a PNG image with a transparent background
+        dogImage.src = 'https://cdn-icons-png.flaticon.com/512/91/91544.png'; 
+
+        // --- Functions ---
+        function updateSpeedDisplay() {
+            speedDisplay.textContent = `속도: ${dog.speed.toFixed(1)}`;
+        }
 
         // --- Event Listeners ---
         window.addEventListener('resize', () => {
@@ -84,11 +116,17 @@
         });
 
         document.getElementById('slowerBtn').addEventListener('click', () => {
-            dog.speed = Math.max(0.5, dog.speed - 0.5); // Set a minimum speed
+            dog.speed = Math.max(0.5, dog.speed - 0.5);
+            updateSpeedDisplay();
         });
 
         document.getElementById('fasterBtn').addEventListener('click', () => {
-            dog.speed = Math.min(10, dog.speed + 0.5); // Set a maximum speed
+            dog.speed = Math.min(10, dog.speed + 0.5);
+            updateSpeedDisplay();
+        });
+
+        clearBallBtn.addEventListener('click', () => {
+            ball.active = false;
         });
 
         // --- Drawing Functions ---
@@ -102,8 +140,11 @@
             if (ball.active) {
                 ctx.beginPath();
                 ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI * 2);
-                ctx.fillStyle = 'red';
+                ctx.fillStyle = '#66BB6A'; // Playful green
+                ctx.strokeStyle = '#388E3C'; // Darker green outline
+                ctx.lineWidth = 2;
                 ctx.fill();
+                ctx.stroke();
                 ctx.closePath();
             }
         }
@@ -169,6 +210,8 @@
             requestAnimationFrame(animate);
         }
 
+        // --- Initial Setup ---
+        updateSpeedDisplay();
         dogImage.onload = animate;
         if (dogImage.complete) animate();
 
