@@ -132,7 +132,20 @@
         // --- Drawing Functions ---
         function drawDog() {
             if (dogImage.complete) {
-                ctx.drawImage(dogImage, dog.x - dog.size / 2, dog.y - dog.size / 2, dog.size, dog.size);
+                ctx.save(); // Save the current canvas state
+
+                // Translate to the center of the dog
+                ctx.translate(dog.x, dog.y);
+
+                if (dog.dx < 0) { // Moving left
+                    ctx.scale(-1, 1); // Flip horizontally
+                    // Draw image centered around the new origin (which is dog.x, dog.y before translation)
+                    ctx.drawImage(dogImage, -dog.size / 2, -dog.size / 2, dog.size, dog.size);
+                } else { // Moving right or not moving horizontally
+                    ctx.drawImage(dogImage, -dog.size / 2, -dog.size / 2, dog.size, dog.size);
+                }
+                
+                ctx.restore(); // Restore the canvas state
             }
         }
 
