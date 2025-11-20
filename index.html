@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moving Dog Background</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="backgroundCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('backgroundCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        const mouse = {
+            x: null,
+            y: null,
+            radius: 150
+        };
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+        
+        window.addEventListener('mouseout', () => {
+            mouse.x = undefined;
+            mouse.y = undefined;
+        });
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        // --- Dog Image ---
+        const dogImage = new Image();
+        // TODO: Replace this placeholder URL with a direct link to your desired dog image.
+        // For example: "https://example.com/your-dog-image.png"
+        dogImage.src = 'https://cdn-icons-png.flaticon.com/512/91/91544.png'; // A placeholder cute dog icon
+
+        const dog = {
+            x: Math.random() * width,
+            y: Math.random() * height,
+            size: 80,
+            speed: 2,
+            dx: (Math.random() - 0.5) * 2,
+            dy: (Math.random() - 0.5) * 2,
+        };
+
+        function drawDog() {
+            if (dogImage.complete) {
+                ctx.drawImage(dogImage, dog.x - dog.size / 2, dog.y - dog.size / 2, dog.size, dog.size);
+            }
+        }
+
+        function updateDog() {
+            // Move dog
+            dog.x += dog.dx * dog.speed;
+            dog.y += dog.dy * dog.speed;
+
+            // Wall collision
+            if (dog.x + dog.size / 2 > width || dog.x - dog.size / 2 < 0) {
+                dog.dx *= -1;
+            }
+            if (dog.y + dog.size / 2 > height || dog.y - dog.size / 2 < 0) {
+                dog.dy *= -1;
+            }
+            
+            // Mouse collision
+            if (mouse.x !== undefined && mouse.y !== undefined) {
+                const dxMouse = dog.x - mouse.x;
+                const dyMouse = dog.y - mouse.y;
+                const distance = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
+
+                if (distance < mouse.radius) {
+                    const angle = Math.atan2(dyMouse, dxMouse);
+                    dog.dx = Math.cos(angle);
+                    dog.dy = Math.sin(angle);
+                    dog.x += dog.dx * (dog.speed + 2); // Extra boost to run away
+                    dog.y += dog.dy * (dog.speed + 2);
+                }
+            } else {
+                 // Randomly change direction when mouse is out
+                if (Math.random() < 0.01) {
+                    dog.dx = (Math.random() - 0.5) * 2;
+                    dog.dy = (Math.random() - 0.5) * 2;
+                }
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            updateDog();
+            drawDog();
+            requestAnimationFrame(animate);
+        }
+
+        dogImage.onload = () => {
+            animate();
+        };
+
+        // If the image is already cached and loaded
+        if (dogImage.complete) {
+            animate();
+        }
+    </script>
+</body>
+</html>
